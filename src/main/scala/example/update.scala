@@ -18,7 +18,7 @@ object Action {
 
   implicit def fromMonoid[S](implicit monoidS: Monoid[S]): Action[S, S] =
     new Action[S, S] {
-      override val monoid = monoidS
+      override val monoid: Monoid[S] = monoidS
       override def act(state: S, effect: S): S = monoid.combine(state, effect)
     }
 }
@@ -130,16 +130,16 @@ object UpdateIO extends UpdateCompanion { comp =>
     implicit action: Action[S, E]
   ): IO[(E, B)] =
     update(state).flatMap { case (effect, eab) =>
-        eab match {
-          case Left(a) =>
-            IO.suspend[(E, B)] {
-              val newHistory = action.monoid.combine(history, effect)
-              val newState = action.act(state, effect)
-              val newUpdate = f(a)
-              subRun[S, E, A, B](newUpdate, newState, newHistory)(f)
-            }
-          case Right(b) => IO.pure((history, b))
-        }
+      val newHistory = action.monoid.combine(history, effect)
+      eab match {
+        case Left(a) =>
+          IO.suspend[(E, B)] {
+            val newState = action.act(state, effect)
+            val newUpdate = f(a)
+            subRun[S, E, A, B](newUpdate, newState, newHistory)(f)
+          }
+        case Right(b) => IO.pure((newHistory, b))
+      }
     }
 
   override def tailRecM[S, E, A, B](value: A)(f: A => Type[S, E, Either[A, B]])(implicit action: Action[S, E]): Type[S, E, B] =
@@ -153,7 +153,9 @@ object UpdateIO extends UpdateCompanion { comp =>
   implicit def ops[S, E, A](target: Type[S, E, A]): Ops[S, E, A] = new Ops[S, E, A](target)
 }
 
-trait UpdateCodIO[S, E, A] { self =>
+sealed trait UpdateCodIO[S, E, A] { self =>
+  import UpdateCodIO.subRun
+
   def apply[Z](state: S)(handle: (E, A) => IO[Z]): IO[Z]
 
   final def contraMap[R](f: R => S): UpdateCodIO[R, E, A] =
@@ -180,40 +182,98 @@ trait UpdateCodIO[S, E, A] { self =>
           }
         }
     }
+
+  final def run[B](state: S)(f: A => UpdateCodIO[S, E, Either[A, B]])(implicit action: Action[S, E]): IO[(E, B)] =
+    subRun[S, E, A, B](map[Either[A, B]] { Left(_) }, state, action.monoid.empty)(f)
 }
 
 object UpdateCodIO extends UpdateCompanion { comp =>
   override type Type[S, E, A] = UpdateCodIO[S, E, A]
 
   override def acting[S, E](f: S => E)
-    (implicit action: Action[S, E]): Type[S, E, S] = ???
+    (implicit action: Action[S, E]): Type[S, E, S] =
+    new UpdateCodIO[S, E, S] {
+      override def apply[Z](state: S)(handle: (E, S) => IO[Z]): IO[Z] = {
+        val e = f(state)
+        val newState = action.act(state, e)
+        handle(e, newState)
+      }
+    }
 
   override def actingIO[S, E](f: S => IO[E])
-    (implicit action: Action[S, E]): Type[S, E, S] = ???
+    (implicit action: Action[S, E]): Type[S, E, S] =
+    new UpdateCodIO[S, E, S] {
+      override def apply[Z](state: S)(handle: (E, S) => IO[Z]): IO[Z] = {
+        f(state).flatMap { e =>
+          val newState = action.act(state, e)
+          handle(e, newState)
+        }
+      }
+    }
 
   override def pure[S, E, A](value: A)
-    (implicit action: Action[S, E]): Type[S, E, A] = ???
+    (implicit action: Action[S, E]): Type[S, E, A] =
+    new UpdateCodIO[S, E, A] {
+      override def apply[Z](state: S)(handle: (E, A) => IO[Z]): IO[Z] =
+        handle(action.monoid.empty, value)
+    }
 
-  override def raiseError[S, E, A](e: Throwable): Type[S, E, A] = ???
+  override def raiseError[S, E, A](e: Throwable): Type[S, E, A] =
+    new UpdateCodIO[S, E, A] {
+      override def apply[Z](state: S)(handle: (E, A) => IO[Z]): IO[Z] =
+        IO.raiseError(e)
+    }
 
   override def liftIO[S, E, A](ioa: IO[A])
-    (implicit action: Action[S, E]): Type[S, E, A] = ???
+    (implicit action: Action[S, E]): Type[S, E, A] =
+    new UpdateCodIO[S, E, A] {
+      override def apply[Z](state: S)(handle: (E, A) => IO[Z]): IO[Z] =
+        ioa.flatMap { a =>
+          handle(action.monoid.empty, a)
+        }
+    }
 
   override def contraMap[R, S, E, A](update: Type[S, E, A])
-    (f: R => S): Type[R, E, A] = ???
+    (f: R => S): Type[R, E, A] = update.contraMap(f)
 
   override def map[S, E, A, B](update: Type[S, E, A])
-    (f: A => B): Type[S, E, B] = ???
+    (f: A => B): Type[S, E, B] = update.map(f)
 
   override def flatMap[S, E, A, B](update: Type[S, E, A])
     (f: A => Type[S, E, B])
-    (implicit action: Action[S, E]): Type[S, E, B] = ???
+    (implicit action: Action[S, E]): Type[S, E, B] = update.flatMap(f)
 
   override def run[S, E, A, B](update: Type[S, E, A], state: S)
     (f: A => Type[S, E, Either[A, B]])
-    (implicit action: Action[S, E]): IO[(E, B)] = ???
+    (implicit action: Action[S, E]): IO[(E, B)] = update.run(state)(f)
+
+  private def subRun[S, E, A, B](
+    update: Type[S, E, Either[A, B]],
+    state: S,
+    history: E
+  )(
+    f: A => Type[S, E, Either[A, B]]
+  )(
+    implicit action: Action[S, E]
+  ): IO[(E, B)] =
+    update.apply[(E, B)](state) { (effect, eab) =>
+      val newHistory = action.monoid.combine(history, effect)
+      eab match {
+        case Left(a) =>
+          IO.suspend[(E, B)] {
+            val newState = action.act(state, effect)
+            val newUpdate = f(a)
+            subRun[S, E, A, B](newUpdate, newState, newHistory)(f)
+          }
+        case Right(b) => IO.pure((newHistory, b))
+      }
+    }
 
   override def tailRecM[S, E, A, B](value: A)
     (f: A => Type[S, E, Either[A, B]])
-    (implicit action: Action[S, E]): Type[S, E, B] = ???
+    (implicit action: Action[S, E]): Type[S, E, B] =
+    new UpdateCodIO[S, E, B] {
+      override def apply[Z](state: S)(handle: (E, B) => IO[Z]): IO[Z] =
+        pure[S, E, A](value).run[B](state)(f).flatMap[Z] { case (e, b) => handle(e, b) }
+    }
 }
