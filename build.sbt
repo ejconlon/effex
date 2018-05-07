@@ -21,7 +21,7 @@ val commonSettings = Seq(
 
 
 val catsVersion = "1.1.0"
-val deps = Map(
+val possibleDeps = Map(
   "cats-core" -> "org.typelevel" %% "cats-core" % catsVersion,
   "cats-effect" -> "org.typelevel" %% "cats-effect" % "1.0.0-RC",
   "cats-free" -> "org.typelevel" %% "cats-free" % catsVersion,
@@ -36,19 +36,13 @@ val deps = Map(
 
 
 
-val coreDeps = Seq(
-  deps("cats-core"),
-  deps("cats-effect"),
-  deps("scalatest") % "test"
+val actualDeps = Seq(
+  possibleDeps("cats-core"),
+  possibleDeps("cats-effect"),
+  possibleDeps("scalatest") % "test"
 )
-
-
-val core = project
-  .settings(commonSettings, libraryDependencies ++= coreDeps)
 
 
 val root = project
   .in(file("."))
-  .aggregate(
-    core
-  )
+  .settings(commonSettings, libraryDependencies ++= actualDeps)
