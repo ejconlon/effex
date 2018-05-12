@@ -3,6 +3,10 @@ package example
 import cats.free.{Free, FreeApplicative}
 import cats.{Applicative, Monad, ~>}
 
+// Product and Coproduct defs adapted from shapeless
+// https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/ops/coproduct.scala
+// https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/hlists.scala
+
 sealed trait Cop[+X] extends Product with Serializable
 
 sealed trait :+:[H[+_], +T <: Cop[X], +X] extends Cop[X] {
@@ -83,7 +87,6 @@ object Cop {
 }
 
 sealed trait CNil[+X] extends Cop[X] {
-  /** Call this when you hit the CNil case in pattern matching to make the match exhaustive and safe. */
   def impossible: Nothing
 }
 
