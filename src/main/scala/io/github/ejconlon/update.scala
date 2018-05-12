@@ -1,9 +1,9 @@
-package example
+package io.github.ejconlon
+
+import cats.effect.IO
+import cats.{Monad, Monoid}
 
 import scala.language.{implicitConversions, reflectiveCalls}
-
-import cats.{Monad, Monoid}
-import cats.effect.IO
 
 // Must follow these laws:
 // act(s, empty) == s

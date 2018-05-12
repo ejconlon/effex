@@ -1,7 +1,6 @@
-package example
+package io.github.ejconlon
 
 import cats.effect.IO
-import cats.~>
 import org.scalatest.FunSuite
 
 object HelloSpec {

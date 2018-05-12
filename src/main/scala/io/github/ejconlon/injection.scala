@@ -1,4 +1,4 @@
-package example
+package io.github.ejconlon
 
 import scala.util.Try
 

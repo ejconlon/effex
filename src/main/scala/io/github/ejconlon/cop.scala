@@ -1,11 +1,12 @@
-package example
+/**
+  * Product and Coproduct defs adapted from shapeless
+  * https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/ops/coproduct.scala
+  * https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/hlists.scala
+  */
+package io.github.ejconlon
 
 import cats.free.{Free, FreeApplicative}
 import cats.{Applicative, Monad, ~>}
-
-// Product and Coproduct defs adapted from shapeless
-// https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/ops/coproduct.scala
-// https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/hlists.scala
 
 sealed trait Cop[+X] extends Product with Serializable
 
@@ -95,7 +96,7 @@ sealed trait Pop[Z[_]] extends Product with Serializable {
 
   def consume[X](c: CopType[X]): Z[X]
 
-  def :*:[H[+ _]](h: H ~> Z): :*:[H, this.type, Z] = example.:*:(h, this)
+  def :*:[H[+ _]](h: H ~> Z): :*:[H, this.type, Z] = _root_.io.github.ejconlon.:*:(h, this)
 }
 
 final case class :*:[H[+_], +T <: Pop[Z], Z[_]](head: H ~> Z, tail: T) extends Pop[Z] {

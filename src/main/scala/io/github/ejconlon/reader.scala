@@ -1,4 +1,4 @@
-package example
+package io.github.ejconlon
 
 import cats.Applicative
 import cats.effect.IO
