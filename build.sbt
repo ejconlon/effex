@@ -39,6 +39,7 @@ val possibleDeps = Map(
 val actualDeps = Seq(
   possibleDeps("cats-core"),
   possibleDeps("cats-effect"),
+  possibleDeps("cats-free"),
   possibleDeps("scalatest") % "test"
 )
 

@@ -88,32 +88,11 @@ final class IORef[A] private (private val value: AtomicReference[A]) extends Any
   }
 
   /**
-    * Attempts to atomically modify the `IORef` with the specified function, but
-    * aborts immediately under concurrent modification of the value by other
-    * fibers.
+    * Compares and sets the value of the `IORef` if and only if it is `eq` to the
+    * specified value. Returns whether or not the ref was modified.
     */
-  def tryModify[E](f: A => A): IO[Option[A]] = IO {
-    val current = value.get
-
-    val next = f(current)
-
-    if (value.compareAndSet(current, next)) Some(next)
-    else None
-  }
-
-  /**
-    * Attempts to atomically modify the `IORef` with the specified function, but
-    * aborts immediately under concurrent modification of the value by other
-    * fibers.
-    */
-  def tryModifyFold[E, B](f: A => (B, A)): IO[Option[B]] = IO {
-    val current = value.get
-
-    val tuple = f(current)
-
-    if (value.compareAndSet(current, tuple._2)) Some(tuple._1)
-    else None
-  }
+  final def compareAndSet(prev: A, next: A): IO[Boolean] =
+    IO { value.compareAndSet(prev, next) }
 }
 
 object IORef {
