@@ -3,7 +3,7 @@
   * https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/ops/coproduct.scala
   * https://github.com/milessabin/shapeless/blob/master/core/src/main/scala/shapeless/hlists.scala
   */
-package io.github.ejconlon
+package io.github.ejconlon.effex
 
 import cats.free.{Free, FreeApplicative}
 import cats.{Applicative, Monad, ~>}
@@ -97,7 +97,7 @@ sealed trait Pop[Z[_]] extends Product with Serializable {
 
   def consume[X](c: CopType[X]): Z[X]
 
-  final def :*:[H[+ _]](h: H ~> Z): :*:[H, Z, this.type] = _root_.io.github.ejconlon.:*:(h, this)
+  final def :*:[H[+ _]](h: H ~> Z): :*:[H, Z, this.type] = _root_.io.github.ejconlon.effex.:*:(h, this)
 }
 
 final case class :*:[H[+_], Z[_], +T <: Pop[Z]](head: H ~> Z, tail: T) extends Pop[Z] {

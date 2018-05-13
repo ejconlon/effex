@@ -1,4 +1,4 @@
-package io.github.ejconlon
+package io.github.ejconlon.effex
 
 import cats.Monoid
 import cats.effect.IO

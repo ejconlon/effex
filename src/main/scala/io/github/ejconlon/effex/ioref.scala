@@ -2,7 +2,7 @@
   * Copied from https://github.com/scalaz/scalaz/blob/series/8.0.x/effect/shared/src/main/scala/scalaz/effect/IORef.scala
   * and converted from scalaz 8 to cats
   */
-package io.github.ejconlon
+package io.github.ejconlon.effex
 
 import java.util.concurrent.atomic.AtomicReference
 

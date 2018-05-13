@@ -1,7 +1,7 @@
 val thisScalaVersion = "2.11.12"
 
 
-name := "effect-extras"
+name := "effex"
 version := "0.0.1"
 organization in ThisBuild := "io.github.ejconlon"
 scalaVersion in ThisBuild := thisScalaVersion

@@ -1,4 +1,4 @@
-package io.github.ejconlon
+package io.github.ejconlon.effex
 
 import cats.{Applicative, Id, ~>}
 
@@ -31,23 +31,23 @@ sealed trait Hop[F[_]] extends Product with Serializable {
 
   def foldMap[G[_]](trans: F ~> G)(implicit app: Applicative[G]): G[Related[Id]]
 
-  final def :@:[A](h: F[A]): :@:[F, A, this.type] = _root_.io.github.ejconlon.:@:(h, this)
+  final def :@:[A](h: F[A]): :@:[F, A, this.type] = _root_.io.github.ejconlon.effex.:@:(h, this)
 }
 
 final case class :@:[F[_], A, T <: Hop[F]](head: F[A], tail: T) extends Hop[F] {
   override type Related[G[_]] = :@:[G, A, tail.Related[G]]
 
   override def compile[G[_]](trans: F ~> G): Related[G] =
-      _root_.io.github.ejconlon.:@:[G, A, tail.Related[G]](trans.apply(head), tail.compile(trans))
+    _root_.io.github.ejconlon.effex.:@:[G, A, tail.Related[G]](trans.apply(head), tail.compile(trans))
 
   override def fold(implicit app: Applicative[F]): F[Related[Id]] =
     app.map2(head, tail.fold) { (h, t) =>
-      _root_.io.github.ejconlon.:@:[Id, A, tail.Related[Id]](h, t)
+      _root_.io.github.ejconlon.effex.:@:[Id, A, tail.Related[Id]](h, t)
     }
 
   override def foldMap[G[_]](trans: F ~> G)(implicit app: Applicative[G]): G[Related[Id]] =
     app.map2(trans.apply(head), tail.foldMap(trans)) { (h, t) =>
-      _root_.io.github.ejconlon.:@:[Id, A, tail.Related[Id]](h, t)
+      _root_.io.github.ejconlon.effex.:@:[Id, A, tail.Related[Id]](h, t)
     }
 }
 
