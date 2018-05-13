@@ -44,6 +44,6 @@ val actualDeps = Seq(
 )
 
 
-val root = project
+val effex = project
   .in(file("."))
   .settings(commonSettings, libraryDependencies ++= actualDeps)
