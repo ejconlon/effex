@@ -53,20 +53,18 @@ object HKDSpec {
       )
   }
 
-//  object ParentHopLike extends HopLike[Adult] {
-//    override type H[F[_]] = :@:[F, ChildHopLike.H[F], String]
-//
-//    override protected def toContext[F[_]](d: Adult[F]): HopContext[Adult, H[F], F] = {
-//      val h: H[F] = :@:(d.job, ChildHopLike.toHop[F](d.innerChild))
-//      new HopContext[Child, H[F], F](h) {
-//        override protected def fromRelated[G[_]](r: h.Related[G]): Child[G] =
-//          Adult[G](
-//            job = r.head,
-//            age = r.tail.head
-//          )
-//      }
-//    }
-//  }
+  object AdultHopLikeHKD extends HopLikeHKD[Adult] {
+    override type H[F[_]] = :@:[F, String, ChildHopLikeHKD.H[F]]
+
+    override def toHop[F[_]](d: Adult[F]): H[F] =
+      :@:(d.job, ChildHopLikeHKD.toHop[F](d.innerChild))
+
+    override def fromRelated[F[_], G[_]](r: H[F]#Related[G]): Adult[G] =
+      Adult[G](
+        job = r.head,
+        innerChild = ChildHopLikeHKD.fromRelated[F, G](r.tail)
+      )
+  }
 }
 
 class HKDSpec extends FunSuite {
