@@ -61,19 +61,6 @@ final case class HNil[F[_]]() extends Hop[F] {
   override def foldMap[G[_]](trans: F ~> G)(implicit app: Applicative[G]): G[Related[Id]] = app.pure(HNil[Id]())
 }
 
-//abstract class HopContext[D[_[_]], HF <: Hop[F], F[_]](h: HF) {
-//  protected def fromRelated[G[_]](r: h.Related[G]): D[G]
-//
-//  final def compile[G[_]](trans: F ~> G): D[G] =
-//    fromRelated[G](h.compile[G](trans))
-//
-//  final def fold(implicit app: Applicative[F]): F[D[Id]] =
-//    app.map[h.Related[Id], D[Id]](h.fold)(fromRelated[Id])
-//
-//  final def foldMap[G[_]](trans: F ~> G)(implicit app: Applicative[G]): G[D[Id]] =
-//    app.map[h.Related[Id], D[Id]](h.foldMap(trans))(fromRelated[Id])
-//}
-
 trait HopLikeHKD[D[_[_]]] extends HKD[D] {
   type H[F[_]] <: Hop[F]
 
