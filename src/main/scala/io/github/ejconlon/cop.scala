@@ -10,25 +10,29 @@ import cats.{Applicative, Monad, ~>}
 
 sealed trait Cop[+X] extends Product with Serializable
 
-sealed trait :+:[H[+_], +T <: Cop[X], +X] extends Cop[X] {
-  def eliminate[A](l: H[X] => A, r: T => A): A
+sealed trait :+:[H[+_], +X, +TX <: Cop[X]] extends Cop[X] {
+  def eliminate[A](l: H[X] => A, r: TX => A): A
 }
 
-final case class Inl[H[+_], +T <: Cop[X], +X](head: H[X]) extends :+:[H, T, X] {
-  override def eliminate[A](l: H[X] => A, r: T => A) = l(head)
+final case class Inl[H[+_], +X, +TX <: Cop[X]](head: H[X]) extends :+:[H, X, TX] {
+  override def eliminate[A](l: H[X] => A, r: TX => A) = l(head)
 }
 
-final case class Inr[H[+_], +T <: Cop[X], +X](tail: T) extends :+:[H, T, X] {
-  override def eliminate[A](l: H[X] => A, r: T => A) = r(tail)
+final case class Inr[H[+_], +X, +TX <: Cop[X]](tail: TX) extends :+:[H, X, TX] {
+  override def eliminate[A](l: H[X] => A, r: TX => A) = r(tail)
+}
+
+sealed trait CNil[+X] extends Cop[X] {
+  def impossible: Nothing
 }
 
 object Cop {
   private[this] type IdPlus[+A] = A
 
-  def inject[C <: Cop[X], I[_], X](i: I[X])(implicit inj: Inject[C, I, X]): C =
+  def inject[CX <: Cop[X], I[_], X](i: I[X])(implicit inj: Inject[CX, I, X]): CX =
     inj.apply(i)
 
-  def select[C <: Cop[X], T[_], X](c: C)(implicit sel: Select[C, T, X]): Option[T[X]] =
+  def select[CX <: Cop[X], T[_], X](c: CX)(implicit sel: Select[CX, T, X]): Option[T[X]] =
     sel.apply(c)
 
   trait Inject[C <: Cop[X], I[_], X] extends Serializable {
@@ -36,33 +40,34 @@ object Cop {
   }
 
   object Inject {
-    def apply[C <: Cop[X], I[_], X](implicit inj: Inject[C, I, X]): Inject[C, I, X] = inj
+    def apply[CX <: Cop[X], I[_], X](implicit inj: Inject[CX, I, X]): Inject[CX, I, X] = inj
 
-    final class HeadInject[H[+_], T <: Cop[X], X] extends Inject[:+:[H, T, X], H, X] {
-      override def apply(i: H[X]): :+:[H, T, X] = Inl[H, T, X](i)
+    final class HeadInject[H[+_], TX <: Cop[X], X] extends Inject[:+:[H, X, TX], H, X] {
+      override def apply(i: H[X]): :+:[H, X, TX] = Inl[H, X, TX](i)
     }
 
     private[this] val headInjectInstance = new HeadInject[IdPlus, CNil[Nothing], Nothing]
 
-    implicit def headInject[H[+_], T <: Cop[X], X]: HeadInject[H, T, X] =
-      headInjectInstance.asInstanceOf[HeadInject[H, T, X]]
+    implicit def headInject[H[+_], TX <: Cop[X], X]: HeadInject[H, TX, X] =
+      headInjectInstance.asInstanceOf[HeadInject[H, TX, X]]
 
-    final class TailInject[H[+ _], T <: Cop[X], I[_], X](implicit inj: Inject[T, I, X]) extends Inject[:+:[H, T, X], I, X] {
-      override def apply(i: I[X]): :+:[H, T, X] = Inr[H, T, X](inj(i))
+    final class TailInject[H[+ _], TX <: Cop[X], I[_], X](implicit inj: Inject[TX, I, X]) extends Inject[:+:[H, X, TX], I, X] {
+        override def apply(i: I[X]): :+:[H, X, TX] = Inr[H, X, TX](inj(i))
     }
 
-    implicit def tailInject[H[+ _], T <: Cop[X], I[_], X](implicit inj: Inject[T, I, X]): TailInject[H, T, I, X] = new TailInject[H, T, I, X]
+    implicit def tailInject[H[+ _], TX <: Cop[X], I[_], X](implicit inj: Inject[TX, I, X]): TailInject[H, TX, I, X] =
+      new TailInject[H, TX, I, X]
   }
 
-  trait Select[C <: Cop[X], T[_], X] extends Serializable {
-    def apply(c: C): Option[T[X]]
+  trait Select[CX <: Cop[X], T[_], X] extends Serializable {
+    def apply(c: CX): Option[T[X]]
   }
 
   object Select {
-    def apply[C <: Cop[X], T[_], X](implicit select: Select[C, T, X]): Select[C, T, X] = select
+    def apply[CX <: Cop[X], T[_], X](implicit select: Select[CX, T, X]): Select[CX, T, X] = select
 
-    final class HeadSelect[H[+ _], T <: Cop[X], X] extends Select[:+:[H, T, X], H, X] {
-      override def apply(c: :+:[H, T, X]): Option[H[X]] =
+    final class HeadSelect[H[+ _], TX <: Cop[X], X] extends Select[:+:[H, X, TX], H, X] {
+      override def apply(c: :+:[H, X, TX]): Option[H[X]] =
         c match {
           case Inl(head) => Some(head)
           case _ => None
@@ -71,24 +76,20 @@ object Cop {
 
     private[this] val headSelectInstance = new HeadSelect[IdPlus, CNil[Nothing], Nothing]
 
-    implicit def headSelect[H[+ _], T <: Cop[X], X]: HeadSelect[H, T, X] =
-      headSelectInstance.asInstanceOf[HeadSelect[H, T, X]]
+    implicit def headSelect[H[+ _], TX <: Cop[X], X]: HeadSelect[H, TX, X] =
+      headSelectInstance.asInstanceOf[HeadSelect[H, TX, X]]
 
-    final class TailSelect[H[+ _], T <: Cop[X], S[_], X](implicit sel: Select[T, S, X]) extends Select[:+:[H, T, X], S, X] {
-      override def apply(c: :+:[H, T, X]): Option[S[X]] =
+    final class TailSelect[H[+ _], TX <: Cop[X], S[_], X](implicit sel: Select[TX, S, X]) extends Select[:+:[H, X, TX], S, X] {
+      override def apply(c: :+:[H, X, TX]): Option[S[X]] =
         c match {
           case Inr(tail) => sel.apply(tail)
           case _ => None
         }
     }
 
-    implicit def tailSelect[H[+ _], T <: Cop[X], S[_], X](implicit sel: Select[T, S, X]): TailSelect[H, T, S, X] =
-      new TailSelect[H, T, S, X]
+    implicit def tailSelect[H[+ _], TX <: Cop[X], S[_], X](implicit sel: Select[TX, S, X]): TailSelect[H, TX, S, X] =
+      new TailSelect[H, TX, S, X]
   }
-}
-
-sealed trait CNil[+X] extends Cop[X] {
-  def impossible: Nothing
 }
 
 sealed trait Pop[Z[_]] extends Product with Serializable {
@@ -96,11 +97,11 @@ sealed trait Pop[Z[_]] extends Product with Serializable {
 
   def consume[X](c: CopType[X]): Z[X]
 
-  def :*:[H[+ _]](h: H ~> Z): :*:[H, this.type, Z] = _root_.io.github.ejconlon.:*:(h, this)
+  final def :*:[H[+ _]](h: H ~> Z): :*:[H, Z, this.type] = _root_.io.github.ejconlon.:*:(h, this)
 }
 
-final case class :*:[H[+_], +T <: Pop[Z], Z[_]](head: H ~> Z, tail: T) extends Pop[Z] {
-  override type CopType[+X] = :+:[H, tail.CopType[X], X]
+final case class :*:[H[+_], Z[_], +T <: Pop[Z]](head: H ~> Z, tail: T) extends Pop[Z] {
+  override type CopType[+X] = :+:[H, X, tail.CopType[X]]
 
   override def consume[X](c: CopType[X]): Z[X] =
     c match {
@@ -121,7 +122,7 @@ object Pop {
 
 trait Language {
   type CopType[+X] <: Cop[X]
-  type PopType[Z[_]] <: Pop.Aux[CopType, Z]
+  type PopType[Z[_]] = Pop.Aux[CopType, Z]
 
   final def inject[F[_], X](f: F[X])(implicit inj: Cop.Inject[CopType[X], F, X]): CopType[X] =
     inj.apply(f)

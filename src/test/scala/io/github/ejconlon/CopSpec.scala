@@ -9,8 +9,7 @@ object CopSpec {
   final case class Baz[+A](value: A)
 
   object MyLanguage extends Language {
-    override type CopType[+X] = :+:[Foo, :+:[Bar, :+:[Baz, CNil[X], X], X], X]
-    override type PopType[Z[_]] = :*:[Foo, :*:[Bar, :*:[Baz, PNil[Z], Z], Z], Z]
+    override type CopType[+X] = :+:[Foo, X, :+:[Bar, X, :+:[Baz, X, CNil[X]]]]
 
     def injectFoo[X](foo: Foo[X]): CopType[X] = inject[Foo, X](foo)
     def injectBar[X](bar: Bar[X]): CopType[X] = inject[Bar, X](bar)
