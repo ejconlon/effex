@@ -90,10 +90,38 @@ object HKDSpec {
 
     override implicit def adultHKD: HKD[Adult] = HKD.fromHopLike[Adult]
   }
+
 }
 
 class HKDSpec extends FunSuite {
-  test("empty") {
-    assert((1 + 1) == 2)
+  import HKDSpec._
+
+  def testConvert[F[_]](preAdult: Adult[F], postAdult: F[Adult[Id]])(implicit app: Applicative[F]): Unit = {
+    val manualAdult = Manual.adultHKD.fold(preAdult)
+    assert(manualAdult === postAdult)
+
+    val derivedAdult = Derived.adultHKD.fold(preAdult)
+    assert(derivedAdult === postAdult)
+  }
+
+  test("convert total") {
+      import cats.instances.option._
+
+      val child = Child[Option](nickname = Some("bob"), age = Some(5))
+      val adult = Adult[Option](job = Some("builder"), innerChild = child)
+
+      val expectedChild = Child[Id](nickname = "bob", age = 5)
+      val expectedAdult = Adult[Id](job = "builder", innerChild = expectedChild)
+
+      testConvert[Option](adult, Some(expectedAdult))
+  }
+
+  test("convert partial") {
+    import cats.instances.option._
+
+    val child = Child[Option](nickname = None, age = Some(5))
+    val adult = Adult[Option](job = Some("builder"), innerChild = child)
+
+    testConvert[Option](adult, None)
   }
 }
