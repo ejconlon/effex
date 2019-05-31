@@ -1,8 +1,8 @@
-val thisScalaVersion = "2.11.12"
+val thisScalaVersion = "2.12.8"
 
 
 name := "effex"
-version := "0.0.1"
+version := "0.0.2"
 organization in ThisBuild := "io.github.ejconlon"
 scalaVersion in ThisBuild := thisScalaVersion
 
