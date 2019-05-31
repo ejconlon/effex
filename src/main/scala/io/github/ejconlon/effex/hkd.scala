@@ -20,6 +20,10 @@ object HKD {
   final class ApplicativeTrans[F[_]](implicit app: Applicative[F]) extends ~>[Id, F] {
     override def apply[A](value: A): F[A] = app.pure(value)
   }
+
+  def apply[D[_[_]]](implicit hkd: HKD[D]): HKD[D] = hkd
+
+  implicit def fromHopLike[D[_[_]]](implicit hopLike: HopLike[D]): HKD[D] = new HopLikeHKD[D]
 }
 
 sealed trait Hop[F[_]] extends Product with Serializable {
@@ -61,26 +65,32 @@ final case class HNil[F[_]]() extends Hop[F] {
   override def foldMap[G[_]](trans: F ~> G)(implicit app: Applicative[G]): G[Related[Id]] = app.pure(HNil[Id]())
 }
 
-trait HopLikeHKD[D[_[_]]] extends HKD[D] {
+trait HopLike[D[_[_]]] {
   type H[F[_]] <: Hop[F]
 
   def toHop[F[_]](d: D[F]): H[F]
 
   def fromRelated[F[_], G[_]](r: H[F]#Related[G]): D[G]
+}
 
+object HopLike {
+  def apply[D[_[_]]](implicit hopLike: HopLike[D]): HopLike[D] = hopLike
+}
+
+class HopLikeHKD[D[_[_]]](implicit hopLike: HopLike[D]) extends HKD[D] {
   override def compile[F[_], G[_]](data: D[F], trans: F ~> G): D[G] =
-    fromRelated[F, G](toHop[F](data).compile[G](trans))
+    hopLike.fromRelated[F, G](hopLike.toHop[F](data).compile[G](trans))
 
   override def fold[F[_]](data: D[F])(implicit app: Applicative[F]): F[D[Id]] = {
     // the redundant cast is necessary to work around a surprise compiler bug resulting
     // from typedef application of Id forcing subtype variance annotations on F
-    val fhid = toHop[F](data).fold.asInstanceOf[F[H[F]#Related[Id]]]
-    app.map[H[F]#Related[Id], D[Id]](fhid)(fromRelated[F, Id])
+    val fhid = hopLike.toHop[F](data).fold.asInstanceOf[F[hopLike.H[F]#Related[Id]]]
+    app.map[hopLike.H[F]#Related[Id], D[Id]](fhid)(hopLike.fromRelated[F, Id])
   }
 
   override def foldMap[F[_], G[_]](data: D[F], trans: F ~> G)(implicit app: Applicative[G]): G[D[Id]] = {
     // see above
-    val ghid = toHop[F](data).foldMap(trans).asInstanceOf[G[H[F]#Related[Id]]]
-    app.map[H[F]#Related[Id], D[Id]](ghid)(fromRelated[F, Id])
+    val ghid = hopLike.toHop[F](data).foldMap(trans).asInstanceOf[G[hopLike.H[F]#Related[Id]]]
+    app.map[hopLike.H[F]#Related[Id], D[Id]](ghid)(hopLike.fromRelated[F, Id])
   }
 }
