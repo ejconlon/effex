@@ -20,10 +20,10 @@ val commonSettings = Seq(
 )
 
 
-val catsVersion = "1.1.0"
+val catsVersion = "2.0.0-M2"
 val possibleDeps = Map(
   "cats-core" -> "org.typelevel" %% "cats-core" % catsVersion,
-  "cats-effect" -> "org.typelevel" %% "cats-effect" % "1.0.0-RC",
+  "cats-effect" -> "org.typelevel" %% "cats-effect" % catsVersion,
   "cats-free" -> "org.typelevel" %% "cats-free" % catsVersion,
   "scalatest" -> "org.scalatest" %% "scalatest" % "3.0.5"
 //  "fastparse-byte" -> "com.lihaoyi" %% "fastparse-byte" % "1.0.0",
